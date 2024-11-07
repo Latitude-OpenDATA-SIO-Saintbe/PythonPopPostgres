@@ -1,14 +1,5 @@
 #!/bin/bash
 
-# Define the desired path
-BASE_PATH="$1"
-
-# Check if a path was provided
-if [ -z "$BASE_PATH" ]; then
-  echo "Usage: $0 <path>"
-  exit 1
-fi
-
 # List of Python scripts to run
 python_scripts=("DB-create.py" "DB-fake-seed.py")  # Add your Python scripts here
 
