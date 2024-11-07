@@ -22,7 +22,7 @@ try:
     # SQL script to create tables and indices
     create_weather_station_table = """
     CREATE TABLE IF NOT EXISTS "WeatherStation" (
-        "Id" SERIAL PRIMARY KEY,   -- Automatically handles unique ID generation
+        "Id" SERIAL PRIMARY KEY,
         "Name" VARCHAR NOT NULL,
         "Position" VARCHAR NOT NULL
     );
@@ -35,7 +35,7 @@ try:
         "Id" SERIAL PRIMARY KEY,
         "WeatherStationId" INTEGER NOT NULL,
         "Timestamp" TIMESTAMPTZ NOT NULL,
-        "Current_temperature_2m" FLOAT, 
+        "Current_temperature_2m" FLOAT,
         "Current_relative_humidity_2m" FLOAT,
         "Current_apparent_temperature" FLOAT,
         "Current_is_day" BOOLEAN,
@@ -131,7 +131,7 @@ try:
     create_departements_table = """
     CREATE TABLE IF NOT EXISTS "Departements" (
         "Id" SERIAL PRIMARY KEY,
-        "Name" VARCHAR NOT NULL,
+        "Name" VARCHAR NOT NULL
     );
     CREATE INDEX IF NOT EXISTS "Departements_index_0"
     ON "Departements" ("Id");
