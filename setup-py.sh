@@ -1,5 +1,4 @@
 #!/bin/bash
-cd ./db-seed
 
 # List of Python scripts to run
 python_scripts=("DB-create.py" "DB-fake-seed.py")  # Add your Python scripts here
@@ -19,7 +18,7 @@ fi
 # Step 3: Loop through the list of Python scripts and run each one
 for script in "${python_scripts[@]}"; do
     echo "Running $script..."
-    python "$script"
+    python "./db-seed/$script"
     
     # Check if the Python script ran successfully
     if [ $? -eq 0 ]; then
