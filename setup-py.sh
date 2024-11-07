@@ -1,4 +1,5 @@
 #!/bin/bash
+cd ./db-seed
 
 # List of Python scripts to run
 python_scripts=("DB-create.py" "DB-fake-seed.py")  # Add your Python scripts here
