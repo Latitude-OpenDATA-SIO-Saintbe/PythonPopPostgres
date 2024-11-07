@@ -18,7 +18,7 @@ fi
 # Step 3: Loop through the list of Python scripts and run each one
 for script in "${python_scripts[@]}"; do
     echo "Running $script..."
-    python "./db-seed/$script"
+    python "db-seed/$script"
     
     # Check if the Python script ran successfully
     if [ $? -eq 0 ]; then
