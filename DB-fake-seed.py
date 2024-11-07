@@ -42,23 +42,6 @@ try:
     cursor.execute(departements_insert_query)
     print("Departements data inserted successfully!")
 
-    # Insert data into "MeteoDataDP" table
-    meteo_data_insert_query = """
-    INSERT INTO "MeteoDataDP" ("DepartmentId", "Temperature", "Humidity", "WindSpeed", "WindDirection", 
-                               "Precipitation", "Pressure", "Date")
-    VALUES
-    ((SELECT Id FROM "Departements" WHERE "Name" = 'ain'), 20, 50, 10, 'N', 0, 1013, '2024-01-01'),
-    ((SELECT Id FROM "Departements" WHERE "Name" = 'aisne'), 22, 60, 12, 'E', 5, 1012, '2024-01-01'),
-    ((SELECT Id FROM "Departements" WHERE "Name" = 'allier'), 18, 55, 8, 'SW', 3, 1011, '2024-01-01'),
-    ((SELECT Id FROM "Departements" WHERE "Name" = 'alpes-de-haute-provence'), 25, 40, 15, 'W', 2, 1009, '2024-01-01'),
-    ((SELECT Id FROM "Departements" WHERE "Name" = 'ain'), 20, 50, 10, 'N', 0, 1013, '2024-02-01'),
-    ((SELECT Id FROM "Departements" WHERE "Name" = 'aisne'), 22, 60, 12, 'E', 5, 1012, '2024-02-01'),
-    ((SELECT Id FROM "Departements" WHERE "Name" = 'allier'), 18, 55, 8, 'SW', 3, 1011, '2024-02-01'),
-    ((SELECT Id FROM "Departements" WHERE "Name" = 'alpes-de-haute-provence'), 25, 40, 15, 'W', 2, 1009, '2024-02-01');
-    """
-    cursor.execute(meteo_data_insert_query)
-    print("MeteoDataDP data inserted successfully!")
-
     # Commit the transaction
     conn.commit()
 

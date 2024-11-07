@@ -132,7 +132,6 @@ try:
     CREATE TABLE IF NOT EXISTS "Departements" (
         "Id" SERIAL PRIMARY KEY,
         "Name" VARCHAR NOT NULL,
-        "Position" VARCHAR NOT NULL
     );
     CREATE INDEX IF NOT EXISTS "Departements_index_0"
     ON "Departements" ("Id");
