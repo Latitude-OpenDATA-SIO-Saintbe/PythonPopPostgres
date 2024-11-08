@@ -5,7 +5,7 @@ BASE_PATH="$1"
 
 # Check if a path was provided
 if [ -z "$BASE_PATH" ]; then
-  BASE_PATH="./"
+  BASE_PATH="."
 fi
 
 # List of Python scripts to run
