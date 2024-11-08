@@ -31,8 +31,8 @@ jobs:
 
     - name: Run Docker Compose to validate
       run: |
-        docker-compose -f ./infra/docker-compose-dev.yml up -d
-        docker-compose -f ./infra/docker-compose-dev.yml ps
+        docker-compose -f infra/docker-compose-dev.yml up -d
+        docker-compose -f infra/docker-compose-dev.yml ps
 
     - name: Wait for the database to be ready
       run: |
