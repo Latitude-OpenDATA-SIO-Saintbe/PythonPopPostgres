@@ -34,14 +34,6 @@ jobs:
         docker-compose -f ./infra/docker-compose-dev.yml up -d
         docker-compose -f ./infra/docker-compose-dev.yml ps
 
-    - name: Wait for the database to be ready
-      run: |
-        echo "Waiting for the database to be ready..."
-        until docker-compose exec -T db pg_isready -U user -d laravel; do
-          echo "Waiting for database..."
-          sleep 5
-        done
-
     - name: Run Python Script
       run: |
         bash setup-py.sh
