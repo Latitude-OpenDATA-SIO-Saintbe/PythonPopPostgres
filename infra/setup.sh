@@ -8,4 +8,6 @@ docker-compose -f ./infra/docker-compose-test.yml up -d
 echo "Checking container status..."
 docker-compose -f ./infra/docker-compose-test.yml ps
 
+bash setup-py.sh
+
 echo "All tasks completed successfully."
