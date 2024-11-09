@@ -13,7 +13,7 @@ python_scripts=("DB-create.py" "DB-fake-seed.py")  # Add your Python scripts her
 
 # Step 1: Install required Python libraries
 echo "Installing required Python libraries..."
-pip install psycopg2 python-dotenv
+pip install psycopg2 python-dotenv shapely
 
 # Step 2: Check if the installation was successful
 if [ $? -eq 0 ]; then
