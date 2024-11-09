@@ -136,7 +136,7 @@ try:
         "Name" VARCHAR NOT NULL,
         "Latitude" SERIAL NOT NULL,
         "Longitude" SERIAL NOT NULL,
-        "Numero" SERIAL NOT NULL
+        "Numero" VARCHAR NOT NULL
     );
     CREATE INDEX IF NOT EXISTS "Departements_index_0"
     ON "Departements" ("Id");
