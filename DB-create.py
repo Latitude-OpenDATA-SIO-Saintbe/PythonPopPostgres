@@ -24,8 +24,8 @@ try:
     CREATE TABLE IF NOT EXISTS "WeatherStation" (
         "Id" SERIAL PRIMARY KEY,
         "Name" VARCHAR NOT NULL,
-        "latitude" SERIAL NOT NULL,
-        "longitude" SERIAL NOT NULL
+        "Latitude" SERIAL NOT NULL,
+        "Longitude" SERIAL NOT NULL
     );
     CREATE INDEX IF NOT EXISTS "WeatherStation_index_0"
     ON "WeatherStation" ("Id");
@@ -123,8 +123,8 @@ try:
     CREATE TABLE IF NOT EXISTS "Cities" (
         "Id" SERIAL PRIMARY KEY,
         "Name" VARCHAR NOT NULL,
-        "latitude" SERIAL NOT NULL,
-        "longitude" SERIAL NOT NULL
+        "Latitude" SERIAL NOT NULL,
+        "Longitude" SERIAL NOT NULL
     );
     CREATE INDEX IF NOT EXISTS "Cities_index_0"
     ON "Cities" ("Id");
@@ -134,8 +134,8 @@ try:
     CREATE TABLE IF NOT EXISTS "Departements" (
         "Id" SERIAL PRIMARY KEY,
         "Name" VARCHAR NOT NULL,
-        "latitude" SERIAL NOT NULL,
-        "longitude" SERIAL NOT NULL,
+        "Latitude" SERIAL NOT NULL,
+        "Longitude" SERIAL NOT NULL,
         "Numero" SERIAL NOT NULL
     );
     CREATE INDEX IF NOT EXISTS "Departements_index_0"
