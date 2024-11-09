@@ -2,7 +2,6 @@ import requests
 import psycopg2
 from dotenv import load_dotenv
 import os
-from shapely.geometry import shape
 
 # Load environment variables from .env file
 load_dotenv()
@@ -85,10 +84,10 @@ def seed_departments(departments):
 
 # Fetch and seed all French city location data
 french_cities = fetch_french_cities()
-    if french_cities:
-        seed_city_locations(french_cities)
-    else:
-        print("No French city location data to insert.")
+if french_cities:
+    seed_city_locations(french_cities)
+else:
+    print("No French city location data to insert.")
 # Fetch all departments and seed them
 departments = fetch_departments()
 if departments:
