@@ -118,6 +118,21 @@ try:
     CREATE INDEX IF NOT EXISTS "WeatherDatas_index_0"
     ON "WeatherDatas" ("Id");
     """
+    create_trigger_function = """
+    CREATE OR REPLACE FUNCTION delete_old_weather_data() RETURNS TRIGGER AS $$
+    BEGIN
+        DELETE FROM "WeatherDatas" WHERE "Timestamp" < NOW() - INTERVAL '1 week';
+        RETURN OLD;
+    END;
+    $$ LANGUAGE plpgsql;
+    """
+
+    create_trigger = """
+    CREATE TRIGGER delete_old_weather_data_trigger
+    BEFORE DELETE ON "WeatherDatas"
+    FOR EACH ROW
+    EXECUTE FUNCTION delete_old_weather_data();
+    """
 
     create_cities_table = """
     CREATE TABLE IF NOT EXISTS "Cities" (
@@ -147,6 +162,8 @@ try:
     cursor.execute(create_weather_datas_table)
     cursor.execute(create_cities_table)
     cursor.execute(create_departements_table)
+    cursor.execute(create_trigger_function)
+    cursor.execute(create_trigger)
 
     # Commit the transaction
     conn.commit()
