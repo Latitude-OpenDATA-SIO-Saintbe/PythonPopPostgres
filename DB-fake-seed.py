@@ -3,6 +3,8 @@ import psycopg2
 from dotenv import load_dotenv
 import os
 from datetime import datetime, timedelta
+import json
+from itertools import zip_longest
 
 # Load environment variables from .env file
 load_dotenv()
@@ -112,6 +114,13 @@ def seed_weather_stations(weather_stations):
     except Exception as e:
         print("Error inserting weather station data:", e)
 
+def safe_get(data, key, index):
+    """ Safely get the indexed item from a list or return None if not possible. """
+    value = data.get(key, None)
+    if isinstance(value, list) and len(value) > index:
+        return value[index]
+    return None
+
 def fetch_weather_forecast(latitude, longitude):
     end_date = datetime.now().strftime('%Y-%m-%d')
     start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
@@ -164,47 +173,64 @@ def seed_weather_forecast(weather_stations):
                 weather_station_id = weather_station_id[0]
                 forecast_data = fetch_weather_forecast(latitude, longitude)
                 if forecast_data:
-                    for daily_data in forecast_data.get('daily', {}).get('time', []):
-                        timestamp = daily_data['time']
-                        values = (
-                            weather_station_id, timestamp, 
-                            daily_data.get('temperature_2m_max', None), daily_data.get('relative_humidity_2m', None), 
-                            daily_data.get('apparent_temperature_max', None), daily_data.get('is_day', None), 
-                            daily_data.get('precipitation_sum', None), daily_data.get('rain_sum', None), 
-                            daily_data.get('showers_sum', None), daily_data.get('snowfall_sum', None), 
-                            daily_data.get('weather_code', None), daily_data.get('cloud_cover', None), 
-                            daily_data.get('pressure_msl', None), daily_data.get('surface_pressure', None), 
-                            daily_data.get('wind_speed_10m_max', None), daily_data.get('wind_direction_10m_dominant', None), 
-                            daily_data.get('wind_gusts_10m_max', None), daily_data.get('temperature_2m', None), 
-                            daily_data.get('relative_humidity_2m', None), daily_data.get('dew_point_2m', None), 
-                            daily_data.get('apparent_temperature', None), daily_data.get('precipitation', None), 
-                            daily_data.get('rain', None), daily_data.get('snowfall', None), daily_data.get('weather_code', None), 
-                            daily_data.get('cloud_cover_total', None), daily_data.get('cloud_cover_low', None), 
-                            daily_data.get('cloud_cover_mid', None), daily_data.get('cloud_cover_high', None), 
-                            daily_data.get('pressure_msl', None), daily_data.get('surface_pressure', None), 
-                            daily_data.get('vapour_pressure_deficit', None), daily_data.get('reference_evapotranspiration', None), 
-                            daily_data.get('wind_speed_10m', None), daily_data.get('wind_speed_20m', None), 
-                            daily_data.get('wind_speed_50m', None), daily_data.get('wind_speed_100m', None), 
-                            daily_data.get('wind_speed_150m', None), daily_data.get('wind_speed_200m', None), 
-                            daily_data.get('wind_direction_10m', None), daily_data.get('wind_direction_20m', None), 
-                            daily_data.get('wind_direction_50m', None), daily_data.get('wind_direction_100m', None), 
-                            daily_data.get('wind_direction_150m', None), daily_data.get('wind_direction_200m', None), 
-                            daily_data.get('wind_gusts_10m', None), daily_data.get('temperature_20m', None), 
-                            daily_data.get('temperature_50m', None), daily_data.get('temperature_100m', None), 
-                            daily_data.get('temperature_150m', None), daily_data.get('temperature_200m', None), 
-                            daily_data.get('weather_code', None), daily_data.get('temperature_2m_max', None), 
-                            daily_data.get('temperature_2m_min', None), daily_data.get('apparent_temperature_max', None), 
-                            daily_data.get('apparent_temperature_min', None), daily_data.get('sunrise', None), 
-                            daily_data.get('sunset', None), daily_data.get('daylight_duration', None), 
-                            daily_data.get('sunshine_duration', None), daily_data.get('uv_index_max', None), 
-                            daily_data.get('uv_index_clear_sky_max', None), daily_data.get('precipitation_sum', None), 
-                            daily_data.get('rain_sum', None), daily_data.get('showers_sum', None), 
-                            daily_data.get('snowfall_sum', None), daily_data.get('precipitation_hours', None), 
-                            daily_data.get('precipitation_probability_max', None), daily_data.get('wind_speed_10m_max', None), 
-                            daily_data.get('wind_gusts_10m_max', None), daily_data.get('wind_direction_10m_dominant', None), 
-                            daily_data.get('shortwave_radiation_sum', None), daily_data.get('reference_evapotranspiration', None)
-                        )
-                        cur.execute(insert_query, values)
+                    daily_times = forecast_data.get('daily', {}).get('time', [])
+                    for i, timestamp in enumerate(daily_times):
+                        daily_data = [
+                            safe_get(forecast_data.get('daily', {}), key, i)
+                            for key in [
+                                'temperature_2m_max', 'relative_humidity_2m', 'apparent_temperature_max',
+                                'is_day', 'precipitation_sum', 'rain_sum', 'showers_sum', 'snowfall_sum',
+                                'weather_code', 'cloud_cover', 'pressure_msl', 'surface_pressure',
+                                'wind_speed_10m_max', 'wind_direction_10m_dominant', 'wind_gusts_10m_max',
+                                'temperature_2m', 'relative_humidity_2m', 'dew_point_2m', 'apparent_temperature',
+                                'precipitation', 'rain', 'snowfall', 'weather_code', 'cloud_cover_total',
+                                'cloud_cover_low', 'cloud_cover_mid', 'cloud_cover_high', 'pressure_msl',
+                                'surface_pressure', 'vapour_pressure_deficit', 'reference_evapotranspiration',
+                                'wind_speed_10m', 'wind_speed_20m', 'wind_speed_50m', 'wind_speed_100m',
+                                'wind_speed_150m', 'wind_speed_200m', 'wind_direction_10m', 'wind_direction_20m',
+                                'wind_direction_50m', 'wind_direction_100m', 'wind_direction_150m', 'wind_direction_200m',
+                                'wind_gusts_10m', 'temperature_20m', 'temperature_50m', 'temperature_100m',
+                                'temperature_150m', 'temperature_200m', 'weather_code', 'temperature_2m_max',
+                                'temperature_2m_min', 'apparent_temperature_max', 'apparent_temperature_min',
+                                'sunrise', 'sunset', 'daylight_duration', 'sunshine_duration', 'uv_index_max',
+                                'uv_index_clear_sky_max', 'precipitation_sum', 'rain_sum', 'showers_sum',
+                                'snowfall_sum', 'precipitation_hours', 'precipitation_probability_max',
+                                'wind_speed_10m_max', 'wind_gusts_10m_max', 'wind_direction_10m_dominant',
+                                'shortwave_radiation_sum', 'reference_evapotranspiration'
+                            ]
+                        ]
+                    current_times = forecast_data.get('current', {}).get('time', [])
+                    for i, timestamp in enumerate(current_times):
+                        current_data = [
+                            safe_get(forecast_data.get('current', {}), key, i)
+                            for key in [
+                                'temperature_2m', 'relative_humidity_2m', 'apparent_temperature', 'is_day', 
+                                'precipitation', 'rain', 'showers', 'snowfall', 'weather_code', 'cloud_cover', 
+                                'pressure_msl', 'surface_pressure', 'wind_speed_10m', 'wind_direction_10m', 
+                                'wind_gusts_10m'
+                            ]
+                        ]
+                    hourly_times = forecast_data.get('hourly', {}).get('time', [])
+                    for i, timestamp in enumerate(hourly_times):
+                        hourly_data = [
+                            safe_get(forecast_data.get('hourly', {}), key, i)
+                            for key in [
+                                'temperature_2m', 'relative_humidity_2m', 'dew_point_2m', 'apparent_temperature', 
+                                'precipitation', 'rain', 'snowfall', 'weather_code', 'cloud_cover_total', 
+                                'cloud_cover_low', 'cloud_cover_mid', 'cloud_cover_high', 'pressure_msl', 
+                                'surface_pressure', 'vapour_pressure_deficit', 'reference_evapotranspiration', 
+                                'wind_speed_10m', 'wind_speed_20m', 'wind_speed_50m', 'wind_speed_100m', 
+                                'wind_speed_150m', 'wind_speed_200m', 'wind_direction_10m', 'wind_direction_20m', 
+                                'wind_direction_50m', 'wind_direction_100m', 'wind_direction_150m', 
+                                'wind_direction_200m', 'wind_gusts_10m', 'temperature_20m', 'temperature_50m', 
+                                'temperature_100m', 'temperature_150m', 'temperature_200m'
+                            ]
+                        ]
+                        values = (weather_station_id, timestamp, *current_data, *hourly_data, *daily_data)
+                        try:
+                            cur.execute(insert_query, values)
+                        except Exception as insert_error:
+                            print("Insert failed:", insert_error)
 
         conn.commit()
         print("Weather forecast data was successfully inserted.")
