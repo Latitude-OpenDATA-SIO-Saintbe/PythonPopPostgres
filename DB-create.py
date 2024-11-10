@@ -134,9 +134,6 @@ try:
     EXECUTE FUNCTION delete_old_weather_data();
     """
 
-    cursor.execute(create_trigger_function)
-    cursor.execute(create_trigger)
-
     create_cities_table = """
     CREATE TABLE IF NOT EXISTS "Cities" (
         "Id" SERIAL PRIMARY KEY,
@@ -165,6 +162,8 @@ try:
     cursor.execute(create_weather_datas_table)
     cursor.execute(create_cities_table)
     cursor.execute(create_departements_table)
+    cursor.execute(create_trigger_function)
+    cursor.execute(create_trigger)
 
     # Commit the transaction
     conn.commit()
