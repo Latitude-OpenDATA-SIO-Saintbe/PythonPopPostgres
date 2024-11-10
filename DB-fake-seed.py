@@ -157,7 +157,7 @@ def seed_weather_forecast(weather_stations):
         """
         
         for station in weather_stations:
-            name, latitude, longitude = station
+            latitude, longitude = station[1], station[2]
             cur.execute('SELECT "Id" FROM "WeatherStation" WHERE "Latitude" = %s AND "Longitude" = %s', (latitude, longitude))
             weather_station_id = cur.fetchone()
             if weather_station_id:
