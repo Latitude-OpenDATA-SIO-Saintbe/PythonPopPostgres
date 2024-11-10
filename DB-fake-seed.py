@@ -5,6 +5,7 @@ import os
 from datetime import datetime, timedelta
 import json
 from itertools import zip_longest
+import sys
 
 # Load environment variables from .env file
 load_dotenv()
@@ -36,6 +37,7 @@ def seed_city_locations(city_locations):
 
     except Exception as e:
         print("Error inserting city location data:", e)
+        sys.exit(1)
 
 def fetch_french_cities():
     url = "https://geo.api.gouv.fr/communes?fields=nom,centre&format=json&geometry=centre"
@@ -46,7 +48,7 @@ def fetch_french_cities():
         return [(city['nom'], city['centre']['coordinates'][1], city['centre']['coordinates'][0]) for city in cities]
     except Exception as e:
         print("Error fetching French cities data:", e)
-        return []
+        sys.exit(1)
 
 def fetch_departments():
     url = "https://gist.githubusercontent.com/Tazeg/e0c05fdb39552010e9d0e8218aa3f23c/raw/792f846499b67f135b274ff54d72260ffad48dfe/depts.json"
@@ -57,7 +59,7 @@ def fetch_departments():
         return departments
     except Exception as e:
         print("Error fetching department data:", e)
-        return []
+        sys.exit(1)
 
 def seed_departments(departments):
     try:
@@ -81,9 +83,9 @@ def seed_departments(departments):
         cur.close()
         conn.close()
 
-
     except Exception as e:
         print("Error inserting department data:", e)
+        sys.exit(1)
 
 def fetch_weather_stations():
     url = "https://meteo.comptoir.net/api/stations"
@@ -94,7 +96,7 @@ def fetch_weather_stations():
         return [(station['name'], station['latitude'], station['longitude']) for station in stations]
     except Exception as e:
         print("Error fetching weather stations data:", e)
-        return []
+        sys.exit(1)
 
 def seed_weather_stations(weather_stations):
     try:
@@ -113,6 +115,7 @@ def seed_weather_stations(weather_stations):
         conn.close()
     except Exception as e:
         print("Error inserting weather station data:", e)
+        sys.exit(1)
 
 def safe_get(data, key, index):
     """ Safely get the indexed item from a list or return None if not possible. """
@@ -131,7 +134,7 @@ def fetch_weather_forecast(latitude, longitude):
         return response.json()
     except Exception as e:
         print(f"Error fetching weather forecast data for {latitude}, {longitude}:", e)
-        return None
+        sys.exit(1)
 
 def seed_weather_forecast(weather_stations):
     try:
@@ -238,15 +241,14 @@ def seed_weather_forecast(weather_stations):
         conn.close()
     except Exception as e:
         print("Error inserting weather forecast data:", e)
-
-
-
+        sys.exit(1)
 
 weather_stations = fetch_weather_stations()
 if weather_stations:
     seed_weather_stations(weather_stations)
 else:
     print("No weather station data to insert.")
+    sys.exit(1)
 
 # Fetch and seed all French city location data
 french_cities = fetch_french_cities()
@@ -254,15 +256,17 @@ if french_cities:
     seed_city_locations(french_cities)
 else:
     print("No French city location data to insert.")
+    sys.exit(1)
+
 # Fetch all departments and seed them
 departments = fetch_departments()
 if departments:
     seed_departments(departments)
 else:
     print("No department data to insert.")
+    sys.exit(1)
 
 seed_weather_forecast(weather_stations)
-
 
 try:
     conn = psycopg2.connect(**db_params)
@@ -274,3 +278,4 @@ try:
     conn.close()
 except Exception as e:
     print("Error fetching database size:", e)
+    sys.exit(1)
