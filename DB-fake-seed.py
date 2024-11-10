@@ -262,3 +262,15 @@ else:
     print("No department data to insert.")
 
 seed_weather_forecast(weather_stations)
+
+
+try:
+    conn = psycopg2.connect(**db_params)
+    cur = conn.cursor()
+    cur.execute("SELECT pg_size_pretty(pg_database_size('laravel'));")
+    db_size = cur.fetchone()
+    print(f"Database size: {db_size[0]}")
+    cur.close()
+    conn.close()
+except Exception as e:
+    print("Error fetching database size:", e)
