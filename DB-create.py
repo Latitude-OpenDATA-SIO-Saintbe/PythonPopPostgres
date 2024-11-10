@@ -2,6 +2,7 @@ import psycopg2
 from psycopg2 import sql
 from dotenv import load_dotenv
 import os
+import sys
 
 # Load environment variables from the .env file
 load_dotenv()
@@ -174,6 +175,7 @@ except Exception as e:
     print(f"Error occurred: {e}")
     if conn:
         conn.rollback()
+    sys.exit(1)
 
 finally:
     # Close the connection
