@@ -36,82 +36,43 @@ try:
     CREATE TABLE IF NOT EXISTS "WeatherDatas" (
         "Id" SERIAL PRIMARY KEY,
         "WeatherStationId" INTEGER NOT NULL,
-        "Timestamp" TIMESTAMPTZ NOT NULL,
-        "Current_temperature_2m" FLOAT,
-        "Current_relative_humidity_2m" FLOAT,
-        "Current_apparent_temperature" FLOAT,
-        "Current_is_day" BOOLEAN,
-        "Current_precipitation" FLOAT,
-        "Current_rain" FLOAT,
-        "Current_showers" FLOAT,
-        "Current_snowfall" FLOAT,
-        "Current_weather_code" INTEGER,
-        "Current_cloud_cover" FLOAT,
-        "Current_pressure_msl" FLOAT,
-        "Current_surface_pressure" FLOAT,
-        "Current_wind_speed_10m" FLOAT,
-        "Current_wind_direction_10m" FLOAT,
-        "Current_wind_gusts_10m" FLOAT,
+        "Timestamp" TIMESTAMP WITH TIME ZONE NOT NULL,
 
         -- Hourly Weather Variables
-        "Hourly_temperature_2m" FLOAT,
-        "Hourly_relative_humidity_2m" FLOAT,
-        "Hourly_dew_point_2m" FLOAT,
-        "Hourly_apparent_temperature" FLOAT,
-        "Hourly_precipitation" FLOAT,
-        "Hourly_rain" FLOAT,
-        "Hourly_snowfall" FLOAT,
-        "Hourly_weather_code" INTEGER,
-        "Hourly_cloud_cover_total" FLOAT,
-        "Hourly_cloud_cover_low" FLOAT,
-        "Hourly_cloud_cover_mid" FLOAT,
-        "Hourly_cloud_cover_high" FLOAT,
-        "Hourly_pressure_msl" FLOAT,
-        "Hourly_surface_pressure" FLOAT,
-        "Hourly_vapour_pressure_deficit" FLOAT,
-        "Hourly_reference_evapotranspiration" FLOAT,
-        "Hourly_wind_speed_10m" FLOAT,
-        "Hourly_wind_speed_20m" FLOAT,
-        "Hourly_wind_speed_50m" FLOAT,
-        "Hourly_wind_speed_100m" FLOAT,
-        "Hourly_wind_speed_150m" FLOAT,
-        "Hourly_wind_speed_200m" FLOAT,
-        "Hourly_wind_direction_10m" FLOAT,
-        "Hourly_wind_direction_20m" FLOAT,
-        "Hourly_wind_direction_50m" FLOAT,
-        "Hourly_wind_direction_100m" FLOAT,
-        "Hourly_wind_direction_150m" FLOAT,
-        "Hourly_wind_direction_200m" FLOAT,
-        "Hourly_wind_gusts_10m" FLOAT,
-        "Hourly_temperature_20m" FLOAT,
-        "Hourly_temperature_50m" FLOAT,
-        "Hourly_temperature_100m" FLOAT,
-        "Hourly_temperature_150m" FLOAT,
-        "Hourly_temperature_200m" FLOAT,
-
-        -- Daily Weather Variables
-        "Daily_weather_code" INTEGER,
-        "Daily_max_temperature_2m" FLOAT,
-        "Daily_min_temperature_2m" FLOAT,
-        "Daily_max_apparent_temperature" FLOAT,
-        "Daily_min_apparent_temperature" FLOAT,
-        "Daily_sunrise" TIMESTAMPTZ,
-        "Daily_sunset" TIMESTAMPTZ,
-        "Daily_daylight_duration" INTEGER,
-        "Daily_sunshine_duration" INTEGER,
-        "Daily_uv_index" FLOAT,
-        "Daily_uv_index_clear_sky" FLOAT,
-        "Daily_precipitation_sum" FLOAT,
-        "Daily_rain_sum" FLOAT,
-        "Daily_showers_sum" FLOAT,
-        "Daily_snowfall_sum" FLOAT,
-        "Daily_precipitation_hours" INTEGER,
-        "Daily_precipitation_probability_max" FLOAT,
-        "Daily_max_wind_speed_10m" FLOAT,
-        "Daily_max_wind_gusts_10m" FLOAT,
-        "Daily_dominant_wind_direction_10m" FLOAT,
-        "Daily_shortwave_radiation_sum" FLOAT,
-        "Daily_reference_evapotranspiration" FLOAT,
+        "temperature_2m" FLOAT,
+        "relative_humidity_2m" FLOAT,
+        "dew_point_2m" FLOAT,
+        "apparent_temperature" FLOAT,
+        "precipitation" FLOAT,
+        "rain" FLOAT,
+        "snowfall" FLOAT,
+        "weather_code" INTEGER,
+        "cloud_cover" FLOAT,
+        "cloud_cover_low" FLOAT,
+        "cloud_cover_mid" FLOAT,
+        "cloud_cover_high" FLOAT,
+        "pressure_msl" FLOAT,
+        "surface_pressure" FLOAT,
+        "vapour_pressure_deficit" FLOAT,
+        "evapotranspiration" FLOAT,
+        "wind_speed_10m" FLOAT,
+        "wind_speed_20m" FLOAT,
+        "wind_speed_50m" FLOAT,
+        "wind_speed_100m" FLOAT,
+        "wind_speed_150m" FLOAT,
+        "wind_speed_200m" FLOAT,
+        "wind_direction_10m" FLOAT,
+        "wind_direction_20m" FLOAT,
+        "wind_direction_50m" FLOAT,
+        "wind_direction_100m" FLOAT,
+        "wind_direction_150m" FLOAT,
+        "wind_direction_200m" FLOAT,
+        "wind_gusts_10m" FLOAT,
+        "temperature_20m" FLOAT,
+        "temperature_50m" FLOAT,
+        "temperature_100m" FLOAT,
+        "temperature_150m" FLOAT,
+        "temperature_200m" FLOAT,
 
         FOREIGN KEY ("WeatherStationId") REFERENCES "WeatherStation" ("Id")
             ON UPDATE NO ACTION ON DELETE CASCADE
@@ -129,10 +90,15 @@ try:
     """
 
     create_trigger = """
-    CREATE TRIGGER delete_old_weather_data_trigger
-    BEFORE DELETE ON "WeatherDatas"
-    FOR EACH ROW
-    EXECUTE FUNCTION delete_old_weather_data();
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'delete_old_weather_data_trigger') THEN
+            CREATE TRIGGER delete_old_weather_data_trigger
+            BEFORE DELETE ON "WeatherDatas"
+            FOR EACH ROW
+            EXECUTE FUNCTION delete_old_weather_data();
+        END IF;
+    END $$;
     """
 
     create_cities_table = """
