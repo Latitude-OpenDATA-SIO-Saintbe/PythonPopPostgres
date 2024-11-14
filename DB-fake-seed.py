@@ -307,7 +307,7 @@ else:
     print("No department data to insert.")
     sys.exit(1)
 
-seed_weather_forecast(weather_stations)
+#seed_weather_forecast(weather_stations)
 
 try:
     conn = psycopg2.connect(**db_params)
