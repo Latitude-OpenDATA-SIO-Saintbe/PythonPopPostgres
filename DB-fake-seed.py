@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import json
 from itertools import zip_longest
 import sys
+import secrets
 
 # Load environment variables from .env file
 load_dotenv()
@@ -13,6 +14,14 @@ load_dotenv()
 # Database connection parameters
 db_params = {
     "dbname": os.getenv('DB_NAME'),
+    "user": os.getenv('DB_USER'),
+    "password": os.getenv('DB_PASSWORD'),
+    "host": os.getenv('DB_HOST'),
+    "port": os.getenv('DB_PORT')
+}
+
+db_paramsinvites = {
+    "dbname": "invites",
     "user": os.getenv('DB_USER'),
     "password": os.getenv('DB_PASSWORD'),
     "host": os.getenv('DB_HOST'),
@@ -38,7 +47,7 @@ def seed_city_locations(city_locations):
             cur.execute(select_query, city)
             if not cur.fetchone():
                 cur.execute(insert_query, city)
-                countInsert += 1  # Use correct increment operator
+                countInsert += 1
 
         conn.commit()
         print(f"{countInsert} city locations were successfully inserted.")
@@ -94,7 +103,7 @@ def seed_departments(departments):
             cur.execute(select_query, (dept_name, latitude, longitude, numero))
             if not cur.fetchone():
                 cur.execute(insert_query, (dept_name, latitude, longitude, numero))
-                countInsert += 1  # Use correct increment operator
+                countInsert += 1
 
         conn.commit()
         print(f"{countInsert} departments were successfully inserted.")
@@ -164,6 +173,7 @@ def seed_weather_forecast(weather_stations):
         conn = psycopg2.connect(**db_params)
         cur = conn.cursor()
 
+        # SQL query to insert weather data
         insert_query = """
             INSERT INTO "WeatherDatas" (
             "WeatherStationId", "Timestamp", "temperature_2m",
@@ -182,6 +192,7 @@ def seed_weather_forecast(weather_stations):
             ON CONFLICT DO NOTHING;
         """
 
+        # SQL query to check if weather data already exists
         select_query = """
             SELECT 1 FROM "WeatherDatas" WHERE "WeatherStationId" = %s AND "Timestamp" = %s AND
             "temperature_2m" = %s AND "relative_humidity_2m" = %s AND "dew_point_2m" = %s AND
@@ -284,6 +295,107 @@ def seed_weather_forecast(weather_stations):
         print("Error inserting weather forecast data:", e)
         sys.exit(1)
 
+def insert_permissions_and_roles():
+    """Insert permissions and roles into the database."""
+    try:
+        # Establish database connection
+        conn = psycopg2.connect(**db_paramsinvites)
+        cur = conn.cursor()
+
+        # Define permissions
+        permissions = [
+            'create data',
+            'edit data',
+            'delete data',
+            'view data',
+            'can invite',
+            'edit profile',
+            'view dashboard'
+        ]
+
+        # Define roles and their associated permissions
+        roles_permissions = {
+            'admin': permissions,
+            'manager': ['create data', 'edit data', 'view data', 'edit profile', 'view dashboard'],
+            'moderateur': ['view data', 'edit profile', 'view dashboard'],
+            'user': ['view data']
+        }
+
+        # Guard name to be used for both permissions and roles
+        guard_name = 'web'
+
+        # Create permissions if they don't already exist
+        for permission in permissions:
+            cur.execute("""
+                INSERT INTO permissions (name, guard_name)
+                SELECT %s, %s
+                WHERE NOT EXISTS (SELECT 1 FROM permissions WHERE name = %s);
+            """, (permission, guard_name, permission))
+
+        # Create roles and assign permissions
+        for role, perms in roles_permissions.items():
+            cur.execute("""
+                INSERT INTO roles (name, guard_name)
+                SELECT %s, %s
+                WHERE NOT EXISTS (SELECT 1 FROM roles WHERE name = %s);
+            """, (role, guard_name, role))
+
+            # Assign permission to the role (assuming many-to-many relationship through role_permissions table)
+            for perm in perms:
+                cur.execute("""
+                    INSERT INTO role_has_permissions (role_id, permission_id)
+                    SELECT r.id, p.id
+                    FROM roles r
+                    JOIN permissions p ON p.name = %s
+                    WHERE r.name = %s AND p.guard_name = %s
+                    ON CONFLICT DO NOTHING;
+                """, (perm, role, guard_name))
+
+        # Commit changes and close the connection
+        conn.commit()
+
+        print("Permissions and roles inserted successfully.")
+
+        cur.close()
+        conn.close()
+
+    except Exception as e:
+        print(f"Error during seeding: {e}")
+        sys.exit(1)
+
+def generate_token(length=32):
+    """Generate a random token of a specified length."""
+    return secrets.token_urlsafe(length)
+
+def insert_invite():
+    """Insert a new invite into the 'invites' table."""
+    token = generate_token()  # Generate a random token
+    print(token)
+    expires_at = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d %H:%M:%S')
+    created_at = updated_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    try:
+        conn = psycopg2.connect(**db_paramsinvites)
+        cur = conn.cursor()
+
+        # Insert the invite into the 'invites' table
+        insert_query = """
+            INSERT INTO "invites" ("token", "expires_at", "created_at", "updated_at")
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT DO NOTHING;  -- Prevent duplicates (if needed)
+        """
+
+        cur.execute(insert_query, (token, expires_at, created_at, updated_at))
+        conn.commit()
+
+        print(f"Invite with token {token} inserted successfully.")
+
+        cur.close()
+        conn.close()
+
+    except Exception as e:
+        print(f"Error inserting invite data: {e}")
+
 weather_stations = fetch_weather_stations()
 if weather_stations:
     seed_weather_stations(weather_stations)
@@ -307,6 +419,12 @@ else:
     print("No department data to insert.")
     sys.exit(1)
 
+# Run the seeding function
+insert_permissions_and_roles()
+
+# Call the function to insert invite
+insert_invite()
+
 #seed_weather_forecast(weather_stations)
 
 try:
@@ -315,8 +433,12 @@ try:
     cur.execute("SELECT pg_size_pretty(pg_database_size('laravel'));")
     db_size = cur.fetchone()
     print(f"Database size: {db_size[0]}")
+    cur.execute("SELECT pg_size_pretty(pg_database_size('invites'));")
+    db_size = cur.fetchone()
+    print(f"Database size: {db_size[0]}")
     cur.close()
     conn.close()
+
 except Exception as e:
     print("Error fetching database size:", e)
     sys.exit(1)
