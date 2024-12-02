@@ -2,7 +2,6 @@ import psycopg2
 from psycopg2 import sql
 from dotenv import load_dotenv
 import os
-import sys
 
 # Load environment variables from the .env file
 load_dotenv()
@@ -36,43 +35,82 @@ try:
     CREATE TABLE IF NOT EXISTS "WeatherDatas" (
         "Id" SERIAL PRIMARY KEY,
         "WeatherStationId" INTEGER NOT NULL,
-        "Timestamp" TIMESTAMP WITH TIME ZONE NOT NULL,
+        "Timestamp" TIMESTAMPTZ NOT NULL,
+        "Current_temperature_2m" FLOAT,
+        "Current_relative_humidity_2m" FLOAT,
+        "Current_apparent_temperature" FLOAT,
+        "Current_is_day" BOOLEAN,
+        "Current_precipitation" FLOAT,
+        "Current_rain" FLOAT,
+        "Current_showers" FLOAT,
+        "Current_snowfall" FLOAT,
+        "Current_weather_code" INTEGER,
+        "Current_cloud_cover" FLOAT,
+        "Current_pressure_msl" FLOAT,
+        "Current_surface_pressure" FLOAT,
+        "Current_wind_speed_10m" FLOAT,
+        "Current_wind_direction_10m" FLOAT,
+        "Current_wind_gusts_10m" FLOAT,
 
         -- Hourly Weather Variables
-        "temperature_2m" FLOAT,
-        "relative_humidity_2m" FLOAT,
-        "dew_point_2m" FLOAT,
-        "apparent_temperature" FLOAT,
-        "precipitation" FLOAT,
-        "rain" FLOAT,
-        "snowfall" FLOAT,
-        "weather_code" INTEGER,
-        "cloud_cover" FLOAT,
-        "cloud_cover_low" FLOAT,
-        "cloud_cover_mid" FLOAT,
-        "cloud_cover_high" FLOAT,
-        "pressure_msl" FLOAT,
-        "surface_pressure" FLOAT,
-        "vapour_pressure_deficit" FLOAT,
-        "evapotranspiration" FLOAT,
-        "wind_speed_10m" FLOAT,
-        "wind_speed_20m" FLOAT,
-        "wind_speed_50m" FLOAT,
-        "wind_speed_100m" FLOAT,
-        "wind_speed_150m" FLOAT,
-        "wind_speed_200m" FLOAT,
-        "wind_direction_10m" FLOAT,
-        "wind_direction_20m" FLOAT,
-        "wind_direction_50m" FLOAT,
-        "wind_direction_100m" FLOAT,
-        "wind_direction_150m" FLOAT,
-        "wind_direction_200m" FLOAT,
-        "wind_gusts_10m" FLOAT,
-        "temperature_20m" FLOAT,
-        "temperature_50m" FLOAT,
-        "temperature_100m" FLOAT,
-        "temperature_150m" FLOAT,
-        "temperature_200m" FLOAT,
+        "Hourly_temperature_2m" FLOAT,
+        "Hourly_relative_humidity_2m" FLOAT,
+        "Hourly_dew_point_2m" FLOAT,
+        "Hourly_apparent_temperature" FLOAT,
+        "Hourly_precipitation" FLOAT,
+        "Hourly_rain" FLOAT,
+        "Hourly_snowfall" FLOAT,
+        "Hourly_weather_code" INTEGER,
+        "Hourly_cloud_cover_total" FLOAT,
+        "Hourly_cloud_cover_low" FLOAT,
+        "Hourly_cloud_cover_mid" FLOAT,
+        "Hourly_cloud_cover_high" FLOAT,
+        "Hourly_pressure_msl" FLOAT,
+        "Hourly_surface_pressure" FLOAT,
+        "Hourly_vapour_pressure_deficit" FLOAT,
+        "Hourly_reference_evapotranspiration" FLOAT,
+        "Hourly_wind_speed_10m" FLOAT,
+        "Hourly_wind_speed_20m" FLOAT,
+        "Hourly_wind_speed_50m" FLOAT,
+        "Hourly_wind_speed_100m" FLOAT,
+        "Hourly_wind_speed_150m" FLOAT,
+        "Hourly_wind_speed_200m" FLOAT,
+        "Hourly_wind_direction_10m" FLOAT,
+        "Hourly_wind_direction_20m" FLOAT,
+        "Hourly_wind_direction_50m" FLOAT,
+        "Hourly_wind_direction_100m" FLOAT,
+        "Hourly_wind_direction_150m" FLOAT,
+        "Hourly_wind_direction_200m" FLOAT,
+        "Hourly_wind_gusts_10m" FLOAT,
+        "Hourly_temperature_20m" FLOAT,
+        "Hourly_temperature_50m" FLOAT,
+        "Hourly_temperature_100m" FLOAT,
+        "Hourly_temperature_150m" FLOAT,
+        "Hourly_temperature_200m" FLOAT,
+
+        -- Daily Weather Variables
+        "Daily_weather_code" INTEGER,
+        "Daily_max_temperature_2m" FLOAT,
+        "Daily_min_temperature_2m" FLOAT,
+        "Daily_max_apparent_temperature" FLOAT,
+        "Daily_min_apparent_temperature" FLOAT,
+        "Daily_sunrise" TIMESTAMPTZ,
+        "Daily_sunset" TIMESTAMPTZ,
+        "Daily_daylight_duration" INTEGER,
+        "Daily_sunshine_duration" INTEGER,
+        "Daily_uv_index" FLOAT,
+        "Daily_uv_index_clear_sky" FLOAT,
+        "Daily_precipitation_sum" FLOAT,
+        "Daily_rain_sum" FLOAT,
+        "Daily_showers_sum" FLOAT,
+        "Daily_snowfall_sum" FLOAT,
+        "Daily_precipitation_hours" INTEGER,
+        "Daily_precipitation_probability_max" FLOAT,
+        "Daily_max_wind_speed_10m" FLOAT,
+        "Daily_max_wind_gusts_10m" FLOAT,
+        "Daily_dominant_wind_direction_10m" FLOAT,
+        "Daily_shortwave_radiation_sum" FLOAT,
+        "Daily_reference_evapotranspiration" FLOAT,
 
         FOREIGN KEY ("WeatherStationId") REFERENCES "WeatherStation" ("Id")
             ON UPDATE NO ACTION ON DELETE CASCADE
@@ -90,15 +128,10 @@ try:
     """
 
     create_trigger = """
-    DO $$
-    BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'delete_old_weather_data_trigger') THEN
-            CREATE TRIGGER delete_old_weather_data_trigger
-            BEFORE DELETE ON "WeatherDatas"
-            FOR EACH ROW
-            EXECUTE FUNCTION delete_old_weather_data();
-        END IF;
-    END $$;
+    CREATE TRIGGER delete_old_weather_data_trigger
+    BEFORE DELETE ON "WeatherDatas"
+    FOR EACH ROW
+    EXECUTE FUNCTION delete_old_weather_data();
     """
 
     create_cities_table = """
@@ -233,6 +266,62 @@ try:
     );
     '''
 
+    create_jobs_table = """
+    CREATE TABLE IF NOT EXISTS "jobs" (
+        "id" SERIAL PRIMARY KEY,
+        "queue" VARCHAR NOT NULL,
+        "payload" TEXT NOT NULL,
+        "attempts" INTEGER NOT NULL,
+        "reserved_at" INTEGER,
+        "available_at" INTEGER NOT NULL,
+        "created_at" INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS "jobs_queue_index" ON "jobs" ("queue");
+    """
+
+    create_job_batches_table = """
+    CREATE TABLE IF NOT EXISTS "job_batches" (
+        "id" VARCHAR PRIMARY KEY,
+        "name" VARCHAR NOT NULL,
+        "total_jobs" INTEGER NOT NULL,
+        "pending_jobs" INTEGER NOT NULL,
+        "failed_jobs" INTEGER NOT NULL,
+        "failed_job_ids" TEXT NOT NULL,
+        "options" TEXT,
+        "cancelled_at" INTEGER,
+        "created_at" INTEGER NOT NULL,
+        "finished_at" INTEGER
+    );
+    """
+
+    create_failed_jobs_table = """
+    CREATE TABLE IF NOT EXISTS "failed_jobs" (
+        "id" SERIAL PRIMARY KEY,
+        "uuid" VARCHAR NOT NULL UNIQUE,
+        "connection" TEXT NOT NULL,
+        "queue" TEXT NOT NULL,
+        "payload" TEXT NOT NULL,
+        "exception" TEXT NOT NULL,
+        "failed_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """
+
+    create_cache_table = """
+    CREATE TABLE IF NOT EXISTS "cache" (
+        "key" VARCHAR PRIMARY KEY,
+        "value" TEXT,
+        "expiration" INTEGER
+    );
+    """
+
+    create_cache_locks_table = """
+    CREATE TABLE IF NOT EXISTS "cache_locks" (
+        "key" VARCHAR PRIMARY KEY,
+        "owner" VARCHAR,
+        "expiration" INTEGER
+    );
+    """
+
     # Execute the SQL scripts to create tables and indexes
     cursor.execute(create_weather_station_table)
     cursor.execute(create_weather_datas_table)
@@ -276,6 +365,11 @@ try:
     cursor.execute(create_invite_table)
     cursor.execute(create_session_table)
     cursor.execute(create_password_reset_tokens_table)
+    cursor.execute(create_jobs_table)
+    cursor.execute(create_job_batches_table)
+    cursor.execute(create_failed_jobs_table)
+    cursor.execute(create_cache_table)
+    cursor.execute(create_cache_locks_table)
 
     print("Tables created successfully in the 'invite' database!")
 
@@ -288,7 +382,6 @@ except Exception as e:
     print(f"Error occurred: {e}")
     if conn:
         conn.rollback()
-    sys.exit(1)
 
 finally:
     # Close the connection
