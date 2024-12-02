@@ -5,6 +5,8 @@ import os
 from datetime import datetime, timedelta
 import json
 from itertools import zip_longest
+import sys
+import secrets
 
 # Load environment variables from .env file
 load_dotenv()
@@ -12,6 +14,14 @@ load_dotenv()
 # Database connection parameters
 db_params = {
     "dbname": os.getenv('DB_NAME'),
+    "user": os.getenv('DB_USER'),
+    "password": os.getenv('DB_PASSWORD'),
+    "host": os.getenv('DB_HOST'),
+    "port": os.getenv('DB_PORT')
+}
+
+db_paramsinvites = {
+    "dbname": "invites",
     "user": os.getenv('DB_USER'),
     "password": os.getenv('DB_PASSWORD'),
     "host": os.getenv('DB_HOST'),
@@ -27,15 +37,26 @@ def seed_city_locations(city_locations):
             VALUES (%s, %s, %s)
             ON CONFLICT DO NOTHING;
         """
-        
-        cur.executemany(insert_query, city_locations)
+        select_query = """
+            SELECT 1 FROM "Cities" WHERE "Name" = %s AND "Latitude" = %s AND "Longitude" = %s;
+        """
+
+        countInsert = 0  # Initialize countInsert
+
+        for city in city_locations:
+            cur.execute(select_query, city)
+            if not cur.fetchone():
+                cur.execute(insert_query, city)
+                countInsert += 1
+
         conn.commit()
-        print(f"{cur.rowcount} city locations were successfully inserted.")
+        print(f"{countInsert} city locations were successfully inserted.")
         cur.close()
         conn.close()
 
     except Exception as e:
         print("Error inserting city location data:", e)
+        sys.exit(1)
 
 def fetch_french_cities():
     url = "https://geo.api.gouv.fr/communes?fields=nom,centre&format=json&geometry=centre"
@@ -46,7 +67,7 @@ def fetch_french_cities():
         return [(city['nom'], city['centre']['coordinates'][1], city['centre']['coordinates'][0]) for city in cities]
     except Exception as e:
         print("Error fetching French cities data:", e)
-        return []
+        sys.exit(1)
 
 def fetch_departments():
     url = "https://gist.githubusercontent.com/Tazeg/e0c05fdb39552010e9d0e8218aa3f23c/raw/792f846499b67f135b274ff54d72260ffad48dfe/depts.json"
@@ -57,7 +78,7 @@ def fetch_departments():
         return departments
     except Exception as e:
         print("Error fetching department data:", e)
-        return []
+        sys.exit(1)
 
 def seed_departments(departments):
     try:
@@ -68,22 +89,30 @@ def seed_departments(departments):
             VALUES (%s, %s, %s, %s)
             ON CONFLICT DO NOTHING;
         """
-        
+        select_query = """
+            SELECT 1 FROM "Departements" WHERE "Name" = %s AND "Latitude" = %s AND "Longitude" = %s AND "Numero" = %s;
+        """
+
+        countInsert = 0  # Initialize countInsert
+
         for dept in departments:
             dept_name = dept['nomShort']
             latitude = dept['lat']
             longitude = dept['lng']
             numero = dept['numero']
-            cur.execute(insert_query, (dept_name, latitude, longitude, numero))
+            cur.execute(select_query, (dept_name, latitude, longitude, numero))
+            if not cur.fetchone():
+                cur.execute(insert_query, (dept_name, latitude, longitude, numero))
+                countInsert += 1
 
         conn.commit()
-        print(f"{len(departments)} departments were successfully inserted.")
+        print(f"{countInsert} departments were successfully inserted.")
         cur.close()
         conn.close()
 
-
     except Exception as e:
         print("Error inserting department data:", e)
+        sys.exit(1)
 
 def fetch_weather_stations():
     url = "https://meteo.comptoir.net/api/stations"
@@ -94,7 +123,7 @@ def fetch_weather_stations():
         return [(station['name'], station['latitude'], station['longitude']) for station in stations]
     except Exception as e:
         print("Error fetching weather stations data:", e)
-        return []
+        sys.exit(1)
 
 def seed_weather_stations(weather_stations):
     try:
@@ -105,148 +134,274 @@ def seed_weather_stations(weather_stations):
             VALUES (%s, %s, %s)
             ON CONFLICT DO NOTHING;
         """
-                
-        cur.executemany(insert_query, weather_stations)
+        select_query = """
+            SELECT 1 FROM "WeatherStation" WHERE "Name" = %s AND "Latitude" = %s AND "Longitude" = %s;
+        """
+
+        countInsert = 0  # Initialize countInsert
+
+        for station in weather_stations:
+            cur.execute(select_query, station)
+            if not cur.fetchone():
+                cur.execute(insert_query, station)
+                countInsert += 1
+
         conn.commit()
-        print(f"{cur.rowcount} weather stations were successfully inserted.")
+        print(f"{countInsert} weather stations were successfully inserted.")
         cur.close()
         conn.close()
     except Exception as e:
         print("Error inserting weather station data:", e)
-
-def safe_get(data, key, index):
-    """ Safely get the indexed item from a list or return None if not possible. """
-    value = data.get(key, None)
-    if isinstance(value, list) and len(value) > index:
-        return value[index]
-    return None
+        sys.exit(1)
 
 def fetch_weather_forecast(latitude, longitude):
     end_date = datetime.now().strftime('%Y-%m-%d')
     start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,pressure_msl,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,precipitation,rain,snowfall,weather_code,pressure_msl,surface_pressure,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,et0_fao_evapotranspiration,vapour_pressure_deficit,wind_speed_10m,wind_speed_20m,wind_speed_50m,wind_speed_100m,wind_speed_150m,wind_speed_200m,wind_direction_10m,wind_direction_20m,wind_direction_50m,wind_direction_100m,wind_direction_150m,wind_direction_200m,wind_gusts_10m,temperature_20m,temperature_50m,temperature_100m,temperature_150m,temperature_200m&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,sunrise,sunset,daylight_duration,sunshine_duration,uv_index_max,uv_index_clear_sky_max,precipitation_sum,rain_sum,showers_sum,snowfall_sum,precipitation_hours,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,shortwave_radiation_sum,et0_fao_evapotranspiration&start_date={start_date}&end_date={end_date}&models=meteofrance_seamless"
+    url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,precipitation,rain,snowfall,weather_code,pressure_msl,surface_pressure,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,et0_fao_evapotranspiration,vapour_pressure_deficit,wind_speed_10m,wind_speed_20m,wind_speed_50m,wind_speed_100m,wind_speed_150m,wind_speed_200m,wind_direction_10m,wind_direction_20m,wind_direction_50m,wind_direction_100m,wind_direction_150m,wind_direction_200m,wind_gusts_10m,temperature_20m,temperature_50m,temperature_100m,temperature_150m,temperature_200m&start_date={start_date}&end_date={end_date}&models=meteofrance_seamless"
     try:
+        #print(url)
         response = requests.get(url)
         response.raise_for_status()
         return response.json()
     except Exception as e:
         print(f"Error fetching weather forecast data for {latitude}, {longitude}:", e)
-        return None
+        sys.exit(1)
 
 def seed_weather_forecast(weather_stations):
     try:
+        # Establish database connection
         conn = psycopg2.connect(**db_params)
         cur = conn.cursor()
+
+        # SQL query to insert weather data
         insert_query = """
             INSERT INTO "WeatherDatas" (
-                "WeatherStationId", "Timestamp", "Current_temperature_2m", "Current_relative_humidity_2m", 
-                "Current_apparent_temperature", "Current_is_day", "Current_precipitation", "Current_rain", 
-                "Current_showers", "Current_snowfall", "Current_weather_code", "Current_cloud_cover", 
-                "Current_pressure_msl", "Current_surface_pressure", "Current_wind_speed_10m", 
-                "Current_wind_direction_10m", "Current_wind_gusts_10m", "Hourly_temperature_2m", 
-                "Hourly_relative_humidity_2m", "Hourly_dew_point_2m", "Hourly_apparent_temperature", 
-                "Hourly_precipitation", "Hourly_rain", "Hourly_snowfall", "Hourly_weather_code", 
-                "Hourly_cloud_cover_total", "Hourly_cloud_cover_low", "Hourly_cloud_cover_mid", 
-                "Hourly_cloud_cover_high", "Hourly_pressure_msl", "Hourly_surface_pressure", 
-                "Hourly_vapour_pressure_deficit", "Hourly_reference_evapotranspiration", "Hourly_wind_speed_10m", 
-                "Hourly_wind_speed_20m", "Hourly_wind_speed_50m", "Hourly_wind_speed_100m", 
-                "Hourly_wind_speed_150m", "Hourly_wind_speed_200m", "Hourly_wind_direction_10m", 
-                "Hourly_wind_direction_20m", "Hourly_wind_direction_50m", "Hourly_wind_direction_100m", 
-                "Hourly_wind_direction_150m", "Hourly_wind_direction_200m", "Hourly_wind_gusts_10m", 
-                "Hourly_temperature_20m", "Hourly_temperature_50m", "Hourly_temperature_100m", 
-                "Hourly_temperature_150m", "Hourly_temperature_200m", "Daily_weather_code", 
-                "Daily_max_temperature_2m", "Daily_min_temperature_2m", "Daily_max_apparent_temperature", 
-                "Daily_min_apparent_temperature", "Daily_sunrise", "Daily_sunset", "Daily_daylight_duration", 
-                "Daily_sunshine_duration", "Daily_uv_index", "Daily_uv_index_clear_sky", "Daily_precipitation_sum", 
-                "Daily_rain_sum", "Daily_showers_sum", "Daily_snowfall_sum", "Daily_precipitation_hours", 
-                "Daily_precipitation_probability_max", "Daily_max_wind_speed_10m", "Daily_max_wind_gusts_10m", 
-                "Daily_dominant_wind_direction_10m", "Daily_shortwave_radiation_sum", "Daily_reference_evapotranspiration"
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            "WeatherStationId", "Timestamp", "temperature_2m",
+            "relative_humidity_2m", "dew_point_2m", "apparent_temperature",
+            "precipitation", "rain", "snowfall", "weather_code",
+            "cloud_cover", "cloud_cover_low", "cloud_cover_mid",
+            "cloud_cover_high", "pressure_msl", "surface_pressure",
+            "vapour_pressure_deficit", "evapotranspiration", "wind_speed_10m",
+            "wind_speed_20m", "wind_speed_50m", "wind_speed_100m",
+            "wind_speed_150m", "wind_speed_200m", "wind_direction_10m",
+            "wind_direction_20m", "wind_direction_50m", "wind_direction_100m",
+            "wind_direction_150m", "wind_direction_200m", "wind_gusts_10m",
+            "temperature_20m", "temperature_50m", "temperature_100m",
+            "temperature_150m", "temperature_200m"
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT DO NOTHING;
         """
-        
+
+        # SQL query to check if weather data already exists
+        select_query = """
+            SELECT 1 FROM "WeatherDatas" WHERE "WeatherStationId" = %s AND "Timestamp" = %s AND
+            "temperature_2m" = %s AND "relative_humidity_2m" = %s AND "dew_point_2m" = %s AND
+            "apparent_temperature" = %s AND "precipitation" = %s AND "rain" = %s AND
+            "snowfall" = %s AND "weather_code" = %s AND "cloud_cover" = %s AND
+            "cloud_cover_low" = %s AND "cloud_cover_mid" = %s AND "cloud_cover_high" = %s AND
+            "pressure_msl" = %s AND "surface_pressure" = %s AND "vapour_pressure_deficit" = %s AND
+            "evapotranspiration" = %s AND "wind_speed_10m" = %s AND "wind_speed_20m" = %s AND
+            "wind_speed_50m" = %s AND "wind_speed_100m" = %s AND "wind_speed_150m" = %s AND
+            "wind_speed_200m" = %s AND "wind_direction_10m" = %s AND "wind_direction_20m" = %s AND
+            "wind_direction_50m" = %s AND "wind_direction_100m" = %s AND "wind_direction_150m" = %s AND
+            "wind_direction_200m" = %s AND "wind_gusts_10m" = %s AND "temperature_20m" = %s AND
+            "temperature_50m" = %s AND "temperature_100m" = %s AND "temperature_150m" = %s AND
+            "temperature_200m" = %s;
+        """
+
+        count_insert = 0  # Initialize count for inserted records
+
+        # Loop through weather stations to fetch and insert forecast data
         for station in weather_stations:
             latitude, longitude = station[1], station[2]
             cur.execute('SELECT "Id" FROM "WeatherStation" WHERE "Latitude" = %s AND "Longitude" = %s', (latitude, longitude))
             weather_station_id = cur.fetchone()
+
             if weather_station_id:
                 weather_station_id = weather_station_id[0]
                 forecast_data = fetch_weather_forecast(latitude, longitude)
-                if forecast_data:
-                    daily_times = forecast_data.get('daily', {}).get('time', [])
-                    for i, timestamp in enumerate(daily_times):
-                        daily_data = [
-                            safe_get(forecast_data.get('daily', {}), key, i)
-                            for key in [
-                                'temperature_2m_max', 'relative_humidity_2m', 'apparent_temperature_max',
-                                'is_day', 'precipitation_sum', 'rain_sum', 'showers_sum', 'snowfall_sum',
-                                'weather_code', 'cloud_cover', 'pressure_msl', 'surface_pressure',
-                                'wind_speed_10m_max', 'wind_direction_10m_dominant', 'wind_gusts_10m_max',
-                                'temperature_2m', 'relative_humidity_2m', 'dew_point_2m', 'apparent_temperature',
-                                'precipitation', 'rain', 'snowfall', 'weather_code', 'cloud_cover_total',
-                                'cloud_cover_low', 'cloud_cover_mid', 'cloud_cover_high', 'pressure_msl',
-                                'surface_pressure', 'vapour_pressure_deficit', 'reference_evapotranspiration',
-                                'wind_speed_10m', 'wind_speed_20m', 'wind_speed_50m', 'wind_speed_100m',
-                                'wind_speed_150m', 'wind_speed_200m', 'wind_direction_10m', 'wind_direction_20m',
-                                'wind_direction_50m', 'wind_direction_100m', 'wind_direction_150m', 'wind_direction_200m',
-                                'wind_gusts_10m', 'temperature_20m', 'temperature_50m', 'temperature_100m',
-                                'temperature_150m', 'temperature_200m', 'weather_code', 'temperature_2m_max',
-                                'temperature_2m_min', 'apparent_temperature_max', 'apparent_temperature_min',
-                                'sunrise', 'sunset', 'daylight_duration', 'sunshine_duration', 'uv_index_max',
-                                'uv_index_clear_sky_max', 'precipitation_sum', 'rain_sum', 'showers_sum',
-                                'snowfall_sum', 'precipitation_hours', 'precipitation_probability_max',
-                                'wind_speed_10m_max', 'wind_gusts_10m_max', 'wind_direction_10m_dominant',
-                                'shortwave_radiation_sum', 'reference_evapotranspiration'
-                            ]
-                        ]
-                    current_times = forecast_data.get('current', {}).get('time', [])
-                    for i, timestamp in enumerate(current_times):
-                        current_data = [
-                            safe_get(forecast_data.get('current', {}), key, i)
-                            for key in [
-                                'temperature_2m', 'relative_humidity_2m', 'apparent_temperature', 'is_day', 
-                                'precipitation', 'rain', 'showers', 'snowfall', 'weather_code', 'cloud_cover', 
-                                'pressure_msl', 'surface_pressure', 'wind_speed_10m', 'wind_direction_10m', 
-                                'wind_gusts_10m'
-                            ]
-                        ]
-                    hourly_times = forecast_data.get('hourly', {}).get('time', [])
-                    for i, timestamp in enumerate(hourly_times):
-                        hourly_data = [
-                            safe_get(forecast_data.get('hourly', {}), key, i)
-                            for key in [
-                                'temperature_2m', 'relative_humidity_2m', 'dew_point_2m', 'apparent_temperature', 
-                                'precipitation', 'rain', 'snowfall', 'weather_code', 'cloud_cover_total', 
-                                'cloud_cover_low', 'cloud_cover_mid', 'cloud_cover_high', 'pressure_msl', 
-                                'surface_pressure', 'vapour_pressure_deficit', 'reference_evapotranspiration', 
-                                'wind_speed_10m', 'wind_speed_20m', 'wind_speed_50m', 'wind_speed_100m', 
-                                'wind_speed_150m', 'wind_speed_200m', 'wind_direction_10m', 'wind_direction_20m', 
-                                'wind_direction_50m', 'wind_direction_100m', 'wind_direction_150m', 
-                                'wind_direction_200m', 'wind_gusts_10m', 'temperature_20m', 'temperature_50m', 
-                                'temperature_100m', 'temperature_150m', 'temperature_200m'
-                            ]
-                        ]
-                        values = (weather_station_id, timestamp, *current_data, *hourly_data, *daily_data)
-                        try:
-                            cur.execute(insert_query, values)
-                        except Exception as insert_error:
-                            print("Insert failed:", insert_error)
 
+                if forecast_data:
+                    # Extract the hourly times and weather data
+                    times = forecast_data.get('hourly', {}).get('time', [])
+                    temperature_2m = forecast_data.get('hourly', {}).get('temperature_2m', [])
+                    relative_humidity_2m = forecast_data.get('hourly', {}).get('relative_humidity_2m', [])
+                    dew_point_2m = forecast_data.get('hourly', {}).get('dew_point_2m', [])
+                    apparent_temperature = forecast_data.get('hourly', {}).get('apparent_temperature', [])
+                    precipitation = forecast_data.get('hourly', {}).get('precipitation', [])
+                    rain = forecast_data.get('hourly', {}).get('rain', [])
+                    snowfall = forecast_data.get('hourly', {}).get('snowfall', [])
+                    weather_code = forecast_data.get('hourly', {}).get('weather_code', [])
+                    cloud_cover = forecast_data.get('hourly', {}).get('cloud_cover', [])
+                    cloud_cover_low = forecast_data.get('hourly', {}).get('cloud_cover_low', [])
+                    cloud_cover_mid = forecast_data.get('hourly', {}).get('cloud_cover_mid', [])
+                    cloud_cover_high = forecast_data.get('hourly', {}).get('cloud_cover_high', [])
+                    pressure_msl = forecast_data.get('hourly', {}).get('pressure_msl', [])
+                    surface_pressure = forecast_data.get('hourly', {}).get('surface_pressure', [])
+                    vapour_pressure_deficit = forecast_data.get('hourly', {}).get('vapour_pressure_deficit', [])
+                    evapotranspiration = forecast_data.get('hourly', {}).get('et0_fao_evapotranspiration', [])
+                    wind_speed_10m = forecast_data.get('hourly', {}).get('wind_speed_10m', [])
+                    wind_speed_20m = forecast_data.get('hourly', {}).get('wind_speed_20m', [])
+                    wind_speed_50m = forecast_data.get('hourly', {}).get('wind_speed_50m', [])
+                    wind_speed_100m = forecast_data.get('hourly', {}).get('wind_speed_100m', [])
+                    wind_speed_150m = forecast_data.get('hourly', {}).get('wind_speed_150m', [])
+                    wind_speed_200m = forecast_data.get('hourly', {}).get('wind_speed_200m', [])
+                    wind_direction_10m = forecast_data.get('hourly', {}).get('wind_direction_10m', [])
+                    wind_direction_20m = forecast_data.get('hourly', {}).get('wind_direction_20m', [])
+                    wind_direction_50m = forecast_data.get('hourly', {}).get('wind_direction_50m', [])
+                    wind_direction_100m = forecast_data.get('hourly', {}).get('wind_direction_100m', [])
+                    wind_direction_150m = forecast_data.get('hourly', {}).get('wind_direction_150m', [])
+                    wind_direction_200m = forecast_data.get('hourly', {}).get('wind_direction_200m', [])
+                    wind_gusts_10m = forecast_data.get('hourly', {}).get('wind_gusts_10m', [])
+                    temperature_20m = forecast_data.get('hourly', {}).get('temperature_20m', [])
+                    temperature_50m = forecast_data.get('hourly', {}).get('temperature_50m', [])
+                    temperature_100m = forecast_data.get('hourly', {}).get('temperature_100m', [])
+                    temperature_150m = forecast_data.get('hourly', {}).get('temperature_150m', [])
+                    temperature_200m = forecast_data.get('hourly', {}).get('temperature_200m', [])
+
+                    # Loop through each timestamp (i)
+                    for i, timestamp in enumerate(times):
+                        # Prepare values for insertion
+                        data = [
+                            temperature_2m[i], relative_humidity_2m[i], dew_point_2m[i], apparent_temperature[i],
+                            precipitation[i], rain[i], snowfall[i], weather_code[i], cloud_cover[i],
+                            cloud_cover_low[i], cloud_cover_mid[i], cloud_cover_high[i], pressure_msl[i],
+                            surface_pressure[i], vapour_pressure_deficit[i], evapotranspiration[i],
+                            wind_speed_10m[i], wind_speed_20m[i], wind_speed_50m[i], wind_speed_100m[i],
+                            wind_speed_150m[i], wind_speed_200m[i], wind_direction_10m[i], wind_direction_20m[i],
+                            wind_direction_50m[i], wind_direction_100m[i], wind_direction_150m[i],
+                            wind_direction_200m[i], wind_gusts_10m[i], temperature_20m[i], temperature_50m[i],
+                            temperature_100m[i], temperature_150m[i], temperature_200m[i]
+                        ]
+                        values = (weather_station_id, timestamp, *data)
+
+                        # Check if data already exists for the given station and timestamp
+                        cur.execute(select_query, values)
+                        if not cur.fetchone():
+                            try:
+                                # Insert the data into the database
+                                cur.execute(insert_query, values)
+                                count_insert += 1
+                            except Exception as insert_error:
+                                print("Insert failed:", insert_error)
+
+        # Commit the changes
         conn.commit()
-        print("Weather forecast data was successfully inserted.")
+        print(f"{count_insert} records were successfully inserted.")
         cur.close()
         conn.close()
+
     except Exception as e:
         print("Error inserting weather forecast data:", e)
+        sys.exit(1)
 
+def insert_permissions_and_roles():
+    """Insert permissions and roles into the database."""
+    try:
+        # Establish database connection
+        conn = psycopg2.connect(**db_paramsinvites)
+        cur = conn.cursor()
 
+        # Define permissions
+        permissions = [
+            'create data',
+            'edit data',
+            'delete data',
+            'view data',
+            'can invite',
+            'edit profile',
+            'view dashboard'
+        ]
 
+        # Define roles and their associated permissions
+        roles_permissions = {
+            'admin': permissions,
+            'manager': ['create data', 'edit data', 'view data', 'edit profile', 'view dashboard'],
+            'moderateur': ['view data', 'edit profile', 'view dashboard'],
+            'user': ['view data']
+        }
+
+        # Guard name to be used for both permissions and roles
+        guard_name = 'web'
+
+        # Create permissions if they don't already exist
+        for permission in permissions:
+            cur.execute("""
+                INSERT INTO permissions (name, guard_name)
+                SELECT %s, %s
+                WHERE NOT EXISTS (SELECT 1 FROM permissions WHERE name = %s);
+            """, (permission, guard_name, permission))
+
+        # Create roles and assign permissions
+        for role, perms in roles_permissions.items():
+            cur.execute("""
+                INSERT INTO roles (name, guard_name)
+                SELECT %s, %s
+                WHERE NOT EXISTS (SELECT 1 FROM roles WHERE name = %s);
+            """, (role, guard_name, role))
+
+            # Assign permission to the role (assuming many-to-many relationship through role_permissions table)
+            for perm in perms:
+                cur.execute("""
+                    INSERT INTO role_has_permissions (role_id, permission_id)
+                    SELECT r.id, p.id
+                    FROM roles r
+                    JOIN permissions p ON p.name = %s
+                    WHERE r.name = %s AND p.guard_name = %s
+                    ON CONFLICT DO NOTHING;
+                """, (perm, role, guard_name))
+
+        # Commit changes and close the connection
+        conn.commit()
+
+        print("Permissions and roles inserted successfully.")
+
+        cur.close()
+        conn.close()
+
+    except Exception as e:
+        print(f"Error during seeding: {e}")
+        sys.exit(1)
+
+def generate_token(length=32):
+    """Generate a random token of a specified length."""
+    return secrets.token_urlsafe(length)
+
+def insert_invite():
+    """Insert a new invite into the 'invites' table."""
+    token = generate_token()  # Generate a random token
+    print(token)
+    expires_at = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d %H:%M:%S')
+    created_at = updated_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    try:
+        conn = psycopg2.connect(**db_paramsinvites)
+        cur = conn.cursor()
+
+        # Insert the invite into the 'invites' table
+        insert_query = """
+            INSERT INTO "invites" ("token", "expires_at", "created_at", "updated_at")
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT DO NOTHING;  -- Prevent duplicates (if needed)
+        """
+
+        cur.execute(insert_query, (token, expires_at, created_at, updated_at))
+        conn.commit()
+
+        print(f"Invite with token {token} inserted successfully.")
+
+        cur.close()
+        conn.close()
+
+    except Exception as e:
+        print(f"Error inserting invite data: {e}")
 
 weather_stations = fetch_weather_stations()
 if weather_stations:
     seed_weather_stations(weather_stations)
 else:
     print("No weather station data to insert.")
+    sys.exit(1)
 
 # Fetch and seed all French city location data
 french_cities = fetch_french_cities()
@@ -254,15 +409,23 @@ if french_cities:
     seed_city_locations(french_cities)
 else:
     print("No French city location data to insert.")
+    sys.exit(1)
+
 # Fetch all departments and seed them
 departments = fetch_departments()
 if departments:
     seed_departments(departments)
 else:
     print("No department data to insert.")
+    sys.exit(1)
 
-seed_weather_forecast(weather_stations)
+# Run the seeding function
+insert_permissions_and_roles()
 
+# Call the function to insert invite
+insert_invite()
+
+#seed_weather_forecast(weather_stations)
 
 try:
     conn = psycopg2.connect(**db_params)
@@ -270,7 +433,12 @@ try:
     cur.execute("SELECT pg_size_pretty(pg_database_size('laravel'));")
     db_size = cur.fetchone()
     print(f"Database size: {db_size[0]}")
+    cur.execute("SELECT pg_size_pretty(pg_database_size('invites'));")
+    db_size = cur.fetchone()
+    print(f"Database size: {db_size[0]}")
     cur.close()
     conn.close()
+
 except Exception as e:
     print("Error fetching database size:", e)
+    sys.exit(1)
